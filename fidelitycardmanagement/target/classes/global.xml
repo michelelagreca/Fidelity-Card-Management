@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:listener-config name="HTTPListenerConfig" doc:name="HTTP Listener config" doc:id="9808c423-cb72-4ba2-a2d3-f4a3a53304e1" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<apikit:config outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" doc:name="Router" doc:id="6da6c945-c34c-40be-96c6-e6d4afc23506" name="RouterConfig" api="resource::8931cf0e-0d8f-43a1-b6eb-f5ec93b2e320:fidelity-card-management:1.0.3:raml:zip:fidelityCardManagement.raml"/>
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="99ef8558-099c-4311-9afd-1f8493d2c677" entryTtl="15" entryTtlUnit="DAYS" expirationInterval="7" expirationIntervalUnit="DAYS" />
+	<configuration-properties doc:name="Configuration properties" doc:id="87480f8d-291a-48a5-a33e-31ec470761c0" file="config.yaml" />
+</mule>

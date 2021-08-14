@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<sub-flow name="checkFile" doc:id="2179c04a-9497-410e-b1e2-724f74fa856d">
+		<file:read doc:name="Read CSV" doc:id="0ca7464d-5f91-44e8-94da-d73cc8a8d9c4" path="${CSVFile.path}" outputMimeType="application/csv" />
+		<ee:transform doc:name="Transform Message" doc:id="8c15da4f-d727-4415-abf0-03eeee8e584d">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="cbb3e9c9-c655-4209-826f-834efc5194de" collection="#[payload]">
+			<choice doc:name="Choice" doc:id="760d11fc-6c0b-4026-b97b-bdb0dbf7c0b2">
+				<when expression="#[payload.FiscalCode == vars.fiscalCode]">
+					<set-variable value="#[payload.CardNumber]" doc:name="Card Number" doc:id="64fd48db-dcdc-41ca-8ea0-c80568a16cea" variableName="cardNumber" />
+					<set-variable value="#[payload.Active as Boolean]" doc:name="Card State" doc:id="7127104b-2131-4dfd-b8eb-e482557a5a42" variableName="cardState" />
+					<set-variable value="#[payload.FullName]" doc:name="Name" doc:id="c3246f8a-1579-49d4-b710-aceab83719db" variableName="name"/>
+				</when>
+			</choice>
+		</foreach>
+		<validation:is-not-blank-string doc:name="Is not blank string" doc:id="f7033592-f672-41e8-a25e-251cf01a6010" value="#[vars.cardNumber]" />
+	</sub-flow>
+	<sub-flow name="checkCardNumber" doc:id="0deebdcc-d5e7-47a6-9edb-745d98fd22f8">
+		<os:contains doc:name="Contains" doc:id="0f507b0f-6f7f-4e17-9f61-2971fc86c05c" key="#[vars.cardNumber]" objectStore="Object_store" />
+	</sub-flow>
+	<flow name="summary">
+		<set-variable value="#[message.attributes.queryParams.fiscalCode]" doc:name="Fiscal Code" doc:id="06c6ed3f-2fbb-4216-acbc-8174b4da704e" variableName="fiscalCode" />
+		<validation:matches-regex doc:name="Fiscal Code Validation" doc:id="217502be-09e2-4743-9653-2f2e92c711c1" value="#[vars.fiscalCode]" regex="^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$" />
+		<flow-ref doc:name="Flow Reference" doc:id="64c8327d-5622-4102-9fff-ad0b8fcacc45" name="checkFile" />
+		<flow-ref doc:name="Flow Reference" doc:id="d5a3065a-39eb-4e0e-a018-9c12ce46d319" name="checkCardNumber"/>
+		<validation:is-true doc:name="Is true" doc:id="82a26b6b-6cd1-4fff-b369-f87231f56bdc" expression="#[payload]"/>
+		<os:retrieve doc:name="Retrieve" doc:id="62b8f11e-c9ad-4203-9f28-5c341fa87124" key="#[vars.cardNumber]" objectStore="Object_store"/>
+		<set-variable value="#[payload.points]" doc:name="Current Points" doc:id="560f8386-4f16-48cc-b50e-98b4b5cf4142" variableName="currentPoints"/>
+		<set-variable value="#[payload.lastOperation]" doc:name="Datetime" doc:id="3ecfe16d-dc27-415c-a1fa-c485d4257ee1" variableName="datetime"/>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  fullName: vars.name,
+  fiscalCode: vars.fiscalCode,
+  cardNumber: vars.cardNumber,
+  active: vars.cardState,
+  points: vars.currentPoints,
+  lastUpdate: vars.datetime
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Fiscal Code Error - Propagate" doc:id="4fee822a-ee6f-4a10-a5b7-2bb37e759fa7" type="VALIDATION:MISMATCH">
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="ac0fe622-f433-4a7e-9d36-d28f767c8f41" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "Fiscal code not valid"&#10;}]' doc:name="Error Message" doc:id="3eea858d-5279-415e-90bd-d2fad0ab6fbe" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="No Card Number Error - Propagate" doc:id="0c2bd44c-4534-40d5-bac6-0eec44fe24cf" type="VALIDATION:BLANK_STRING">
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="4d255580-b527-48a9-8e68-0c7f63df4fc3" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "There is not a card matching the inserted value"&#10;}]' doc:name="Error Message" doc:id="309b6970-cc31-4a06-9d6e-7cd26219cf9d" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="No Entry Database Error - Propagate" doc:id="ff751268-d670-4ec1-adaa-002b9af10a46" type="VALIDATION:INVALID_BOOLEAN">
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="1d9f0c9f-344d-4188-a716-47514ad00f74" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "There is not any entry in the database with the inserted values"&#10;}]' doc:name="Error Message" doc:id="95f8603a-50bc-4132-a786-d61a49b827ae" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="addpoints">
+		<set-variable value="#[message.payload.fiscalCode]" doc:name="Fiscal Code" doc:id="80dbffb8-fa87-4843-84d3-c498c941c7a7" variableName="fiscalCode" />
+		<set-variable value="#[message.payload.points]" doc:name="Points" doc:id="f796f6ea-d6d9-4e2a-bcf0-7b01f304499d" variableName="points" />
+		<validation:matches-regex doc:name="Fiscal Code Validation" doc:id="9b39dda9-a257-4588-a635-adf6af692fa7" value="#[vars.fiscalCode]" regex="^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$" />
+		<validation:is-number numberType="INTEGER" doc:name="Points Validation" doc:id="60d68743-102b-4956-a1e0-8d69fae4cd88" value="#[vars.points]" minValue="1" />
+		<flow-ref doc:name="Flow Reference" doc:id="1a767f85-fae7-4186-b85e-33334c445303" name="checkFile"/>
+		<validation:is-true doc:name="Is true" doc:id="0043a383-e264-434b-8665-14425372e7c4" expression="#[vars.cardState]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="e0a17d56-6f82-414b-a3b6-bf706f85dd34" name="checkCardNumber"/>
+		<choice doc:name="Choice" doc:id="ce9a4dec-dd31-48cb-9492-23f27b77e240" >
+			<when expression="#[payload == true]">
+				<os:retrieve doc:name="Retrieve" doc:id="5ee99101-d4f8-4052-a478-f49b3cfe067b" key="#[vars.cardNumber]" objectStore="Object_store"/>
+				<set-variable value="#[payload.points]" doc:name="Current Points" doc:id="11158405-6bd8-4b63-a77f-637b6e6a12eb" variableName="currentPoints" mimeType="application/java"/>
+				<set-variable value="#[(vars.currentPoints default 0) + (vars.points default 0)]" doc:name="Total Points" doc:id="05a3a79a-8851-418f-98c8-bfe8ec60719a" variableName="totalPoints"/>
+				<os:remove doc:name="Remove" doc:id="73084fa3-706a-4735-bbf9-ac73d593c939" key="#[vars.cardNumber]" objectStore="Object_store"/>
+				<os:store doc:name="Store" doc:id="92d5fad6-a7d3-4618-a84f-3a15968b5b9c" key="#[vars.cardNumber]" objectStore="Object_store">
+					<os:value ><![CDATA[#[{
+	points: vars.totalPoints,
+	lastOperation: now()
+}]]]></os:value>
+				</os:store>
+			</when>
+			<otherwise >
+				<set-variable value="#[0]" doc:name="Current Points" doc:id="5faeaca7-2762-4a4c-a617-55722b0de78c" variableName="currentPoints"/>
+				<set-variable value="#[vars.points default 0]" doc:name="Total Points" doc:id="efa45731-d4a3-4f69-b929-1feb27797377" variableName="totalPoints"/>
+				<os:store doc:name="Store" doc:id="ba5b510c-abd6-48ab-be7c-5c5f3b076305" key="#[vars.cardNumber]" objectStore="Object_store">
+			<os:value><![CDATA[#[{
+	points: vars.totalPoints,
+	lastOperation: now()
+}]]]></os:value>
+		</os:store>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="ebfd19af-e61c-406d-9f9e-83153351895a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	fromCredit: vars.currentPoints,
+	toCredits: vars.totalPoints
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="No Card Number Error - Propagate" doc:id="8c518ab1-6335-4c6b-af7b-c633e7f3a71d" type="VALIDATION:BLANK_STRING">
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="ea8dd23e-c16f-45e4-bb4b-65bbb55add4c" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "There is not a card matching the inserted value"&#10;}]' doc:name="Error Message" doc:id="4be8f843-f0db-4fe4-be69-00b842f5949f" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Inactive Card Error - Propagate" doc:id="4bb2cb50-1579-4560-ae5e-f38c4510d7f9" type="VALIDATION:INVALID_BOOLEAN">
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="180009a3-aad9-4e42-8f73-ab3d985c43b0" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "The card is not active"&#10;}]' doc:name="Error Message" doc:id="76415a84-ca98-4bfa-a159-256b4cdcd89b" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Points Error - Propagate" doc:id="063afee1-1003-4451-b7e9-80c68e7fbdfc" type="VALIDATION:INVALID_NUMBER">
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="2148a632-19ac-4805-9583-edbb95efac87" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "The points value has to be greater than 0"&#10;}]' doc:name="Error Message" doc:id="8e874e48-5d67-4535-b1a2-e7404a0f466d" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Fiscal Code Error - Propagate" doc:id="bce8316e-f09e-4418-9f31-420e80de4810" type="VALIDATION:MISMATCH">
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="395e7f60-42bd-4523-89b7-e9c1e8d33177" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "Fiscal code not valid"&#10;}]' doc:name="Error Message" doc:id="4fcd446c-62d3-452a-a3de-40fb48b58ce9" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="removepoints" doc:id="d7f14abf-a18b-468d-afad-4c3feff4dbfa" >
+		<set-variable value="#[message.payload.fiscalCode]" doc:name="Fiscal Code" doc:id="be7bf389-f180-48e9-bc73-9e0830b617ba" variableName="fiscalCode"/>
+		<set-variable value="#[message.payload.points]" doc:name="Points" doc:id="7cb4be70-b883-4316-99f8-ffae35a1188d" variableName="points"/>
+		<validation:matches-regex doc:name="Fiscal Code Validation" doc:id="ba4e8937-272c-4210-9533-c27d31e26250" value="#[vars.fiscalCode]" regex="^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$"/>
+		<validation:is-number numberType="INTEGER" doc:name="Points Validation" doc:id="2e6720a6-c9f4-4072-ab01-b3354b5a2710" value="#[vars.points]" minValue="1"/>
+		<flow-ref doc:name="Flow Reference" doc:id="0d2038a3-d978-4ff5-b908-b311d690b363" name="checkFile"/>
+		<validation:is-true doc:name="Is true" doc:id="49170ca3-0742-4ee8-b020-545ca75ef13a" expression="#[vars.cardState]" />
+		<flow-ref doc:name="Flow Reference" doc:id="369b34b7-2749-4ae5-9eaa-51e7b50200dc" name="checkCardNumber" />
+		<choice doc:name="Choice" doc:id="bbc2c96a-ff0d-4cac-ab05-6d635ee41fbb" >
+			<when expression="#[payload == true]" >
+				<os:retrieve doc:name="Retrieve" doc:id="6a5a2ed7-f8b7-4454-a834-c66a58d7e5d9" key="#[vars.cardNumber]" objectStore="Object_store"/>
+				<set-variable value="#[payload.points]" doc:name="Current Points" doc:id="d15215e3-3a25-4a5f-8ec3-df8774f3a410" variableName="currentPoints" mimeType="application/java"/>
+				<validation:is-number numberType="INTEGER" doc:name="Is number" doc:id="c36848ea-1c73-4600-91b1-7ee39ff89a75" value="#[vars.points]" maxValue="#[vars.currentPoints]"/>
+				<set-variable value="#[(vars.currentPoints default 0) - (vars.points default 0)]" doc:name="Total Points" doc:id="d5422597-2c8f-44e4-809c-1870b4d07d32" variableName="totalPoints" />
+				<os:remove doc:name="Remove" doc:id="efaa90bc-daaa-4dda-b7ad-f452baa88b4b" key="#[vars.cardNumber]" objectStore="Object_store"/>
+				<os:store doc:name="Store" doc:id="b2ee6ed8-44a5-4368-af34-d1ad346d067b" key="#[vars.cardNumber]" objectStore="Object_store">
+					<os:value ><![CDATA[#[{
+	points: vars.totalPoints,
+	lastOperation: now()
+}]]]></os:value>
+				</os:store>
+			</when>
+			<otherwise >
+				<set-variable value="#[0]" doc:name="Current Points" doc:id="6f4f5f4b-9b4e-4fb4-91f6-69691a0c6571" variableName="currentPoints"/>
+				<set-variable value="#[0]" doc:name="Total Points" doc:id="2ea67823-c57f-4082-ae88-31edd8be8259" variableName="totalPoints"/>
+				<os:store doc:name="Store" doc:id="5f8c3363-a51e-42c2-99dc-8387d5a7dc41" key="#[vars.cardNumber]" objectStore="Object_store">
+					<os:value><![CDATA[#[{
+	points: vars.currentPoints,
+	lastOperation: now()
+}]]]></os:value>
+				</os:store>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="887180b9-b567-494e-86cc-21c8cb464c89" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	fromCredit: vars.currentPoints,
+	toCredits: vars.totalPoints
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Fiscal Code Error - Propagate" doc:id="3abcd703-ea02-49aa-821b-ae4cf523bed1" type="VALIDATION:MISMATCH" >
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="f26d9bb7-eacf-44fc-8aef-1c7293dade73" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "Fiscal code not valid"&#10;}]' doc:name="Error Message" doc:id="b12054eb-ba87-467b-8531-59e762388937" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Points Error - Propagate" doc:id="32ca8402-4f71-43d1-bf59-b4eab701fa30" type="VALIDATION:INVALID_NUMBER" >
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="5d60571d-8e15-4d0d-aee6-35470e10f4ab" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "The points value is not valid"&#10;}]' doc:name="Error Message" doc:id="b4f659c5-c089-4404-b648-ac1a419f6a41" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="No Card Number Error - Propagate" doc:id="f4d2b182-e241-48dd-8fa0-a020549a6cae" type="VALIDATION:BLANK_STRING" >
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="54215d2f-8e2b-4706-85d4-b0ec5ef8021a" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "There is not a card matching the inserted value"&#10;}]' doc:name="Error Message" doc:id="86c0e2db-af1a-4831-a8dc-35dbef81d786" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Inactive Card Error - Propagate" doc:id="1bb2f39f-db32-4d81-8d1e-d972ab557749" type="VALIDATION:INVALID_BOOLEAN" >
+				<set-variable value="#[400]" doc:name="Error Code" doc:id="28a53378-2fb6-41c0-adda-289783e794a8" variableName="httpStatus"/>
+				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	errorMessage: "The card is not active"&#10;}]' doc:name="Error Message" doc:id="42b70c5f-69fb-4917-98d6-0afb46afe3fa" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
