@@ -17,5 +17,5 @@ These APIs will be called by the checkout systems of the stores. Customers are n
 ## Extra API
 Subsequently, the customer reports the need for an additional API: Card summary.
 Errors should be handled in a similar way to the previous API:
-- Formal validation of the fiscal code.
-- Existence of an associated card.
+- Formal validation of the fiscal code
+- Existence of an associated card
